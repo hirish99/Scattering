@@ -43,9 +43,14 @@ def main(visualize=False):
     pre_density_discr = Discretization(
             actx, mesh,
             InterpolatoryQuadratureGroupFactory(bdry_quad_order))
+    
+    # We are done defining the mesh and the function space. We have chosen SimplexElementGroup for the
+    # MeshElementGroup and we have chosen a Nodal Quadrature using Interpolatory Quadrature Group Factory.
 
 
     from pytential.qbx import QBXLayerPotentialSource, QBXTargetAssociationFailedError
+
+    # Wraps for QBX, add's QBX specific data structures.
     qbx = QBXLayerPotentialSource(
             pre_density_discr, fine_order=bdry_ovsmp_quad_order, qbx_order=qbx_order,
             fmm_order=fmm_order,
@@ -65,31 +70,54 @@ def main(visualize=False):
 
     # {{{ describe bvp
 
-    from sumpy.kernel import LaplaceKernel
-    kernel = LaplaceKernel(3)
+    from sumpy.kernel import HelmholtzKernel
+    kernel = HelmholtzKernel(3)
 
-    sigma_sym = sym.var("sigma")
-    # sqrt_w = sym.sqrt_jac_q_weight(3)
-    sqrt_w = 1
-    inv_sqrt_w_sigma = sym.cse(sigma_sym/sqrt_w)
+
+    #Define DFIE surface densities
+    sigma_sym = sym.cse(sym.var("sigma"))
+    rho_sym = sym.cse(sym.var("rho"))
+
+    a_sym_vec = sym.cse(sym.make_sym_vector("a", 3))
+    b_sym_vec = sym.cse(sym.make_sym_vector("b", 3))
+
+    from pytools.obj_array import make_obj_array
+    k = sym.var("k")
+    k_0 = sym.var("k_0")
+    u = sym.var("u")
+    u_0 = sym.var("u_0")
+    eps = sym.var("eps")
+    eps_0 = sym.var("eps_0")
+
+    #Define normal vector, https://documen.tician.de/pytential/symbolic.html
+    n_hat = sym.normal(qbx.ambient_dim)
+
+    #Define all boundary operators for ease of use later
+    def S_vec(k, v):
+        return make_obj_array([sym.S(k, v[i]) for i in range(3)])
+    
+    def 
+    
 
     # -1 for interior Dirichlet
     # +1 for exterior Dirichlet
     loc_sign = +1
 
+    '''
     bdry_op_sym = (loc_sign*0.5*sigma_sym
             + sqrt_w*(
                 sym.S(kernel, inv_sqrt_w_sigma, qbx_forced_limit=+1)
                 + sym.D(kernel, inv_sqrt_w_sigma, qbx_forced_limit="avg")
                 ))
-
+    '''
     # }}}
+
 
     bound_op = bind(places, bdry_op_sym)
 
     # {{{ fix rhs and solve
 
-    r_out = 10
+    r_out = 10 #what does this do? where the incoming wave originates from?
     nodes = actx.thaw(density_discr.nodes())
     source = np.array([r_out, 0, 0], dtype=object)
 
