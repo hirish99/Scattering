@@ -78,8 +78,8 @@ def main(visualize=False):
     sigma_sym = sym.cse(sym.var("sigma"))
     rho_sym = sym.cse(sym.var("rho"))
 
-    a_sym_vec = sym.cse(sym.make_sym_vector("a", 2))
-    b_sym_vec = sym.cse(sym.make_sym_vector("b", 2))
+    a_sym_vec = sym.cse(sym.make_sym_vector("a", 3))
+    b_sym_vec = sym.cse(sym.make_sym_vector("b", 3))
 
     from pytools.obj_array import make_obj_array
     k = sym.var("k")
@@ -96,10 +96,13 @@ def main(visualize=False):
 
     #Define all boundary operators for ease of use later. k is the Helmholtz constant, not kernel.
     def S_vec(k, v):
-        return make_obj_array([sym.S(kernel, v[i], k=k, qbx_forced_limit=+1) for i in range(2)])
+        return make_obj_array([sym.S(kernel, v[i], k=k, qbx_forced_limit=+1) for i in range(3)])
+    
     
     def M_vec(k, v):
-        return make_obj_array([sym.cross(n_hat, sym.curl(sym.S(kernel, v[i], k=k, qbx_forced_limit='avg'))) for i in range(2)])
+        #print(type(n_hat))
+        #print(n_hat)
+        return make_obj_array(sym.cross(n_hat, sym.curl([sym.S(kernel, v[i], k=k, qbx_forced_limit='avg') for i in range(3)])))
     
     def D(k, sigma):
         return sym.D(kernel, sigma, k=k, qbx_forced_limit='avg')
@@ -135,12 +138,10 @@ def main(visualize=False):
     A43 = sym.dot(n_hat, (u_0 * eps_0**2 * S_vec(k_0, b_sym_vec) - u * eps**2 * S_vec(k, b_sym_vec)))
     A44 = -(eps_0 + eps)/2 * rho_sym + (eps_0 * Sp(k_0, rho_sym)- eps * Sp(k, rho_sym))
 
-
-
-
+    1/0
     # -1 for interior Dirichlet
     # +1 for exterior Dirichlet
-    loc_sign = +1
+    #loc_sign = +1
 
     '''
     bdry_op_sym = (loc_sign*0.5*sigma_sym
@@ -150,6 +151,11 @@ def main(visualize=False):
                 ))
     '''
     # }}}
+
+    lhs = sym.bmat([[A11, A12, A13, A14],
+                    [A21, A22, A23, A24],
+                    [A31, A32, A33, A34],
+                    [A41, A42, A43, A44]])
 
 
     bound_op = bind(places, bdry_op_sym)
