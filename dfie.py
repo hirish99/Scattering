@@ -9,6 +9,7 @@ from meshmode.discretization.poly_element import (
 
 from pytential import bind, sym
 from pytential.target import PointsTarget
+from pytools.obj_array import ObjectArray1D, new_1d
 
 
 # {{{ set some constants for use below
@@ -78,31 +79,28 @@ def main(visualize=False):
     sigma_sym = sym.cse(sym.var("sigma"))
     rho_sym = sym.cse(sym.var("rho"))
 
-    a_sym_vec = sym.cse(sym.make_sym_vector("a", 3))
-    b_sym_vec = sym.cse(sym.make_sym_vector("b", 3))
+    a_sym_vec = sym.cse(sym.make_sym_vector("a", 2))
+    b_sym_vec = sym.cse(sym.make_sym_vector("b", 2))
 
-    from pytools.obj_array import make_obj_array
     k = sym.var("k")
     k_0 = sym.var("k_0")
     u = sym.var("u")
     u_0 = sym.var("u_0")
     eps = sym.var("eps")
     eps_0 = sym.var("eps_0")
-    omega_0_sq = k_0**2/(eps_0*u_0)
     omega_sq = k**2/(eps*u)
 
     #Define normal vector, https://documen.tician.de/pytential/symbolic.html
-    n_hat = sym.normal(qbx.ambient_dim)
+    n_hat = sym.normal(qbx.ambient_dim).as_vector()
 
     #Define all boundary operators for ease of use later. k is the Helmholtz constant, not kernel.
     def S_vec(k, v):
-        return make_obj_array([sym.S(kernel, v[i], k=k, qbx_forced_limit=+1) for i in range(3)])
-    
+        v_ambient = sym.parametrization_derivative_matrix(3, 2) @ v
+        return new_1d(sym.S(kernel, v_ambient, k=k, qbx_forced_limit=+1))
     
     def M_vec(k, v):
-        #print(type(n_hat))
-        #print(n_hat)
-        return make_obj_array(sym.cross(n_hat, sym.curl([sym.S(kernel, v[i], k=k, qbx_forced_limit='avg') for i in range(3)])))
+        v_ambient = sym.parametrization_derivative_matrix(3, 2) @ v
+        return new_1d(sym.cross(n_hat, sym.curl(sym.S(kernel, v_ambient, k=k, qbx_forced_limit='avg'))))
     
     def D(k, sigma):
         return sym.D(kernel, sigma, k=k, qbx_forced_limit='avg')
@@ -138,27 +136,15 @@ def main(visualize=False):
     A43 = sym.dot(n_hat, (u_0 * eps_0**2 * S_vec(k_0, b_sym_vec) - u * eps**2 * S_vec(k, b_sym_vec)))
     A44 = -(eps_0 + eps)/2 * rho_sym + (eps_0 * Sp(k_0, rho_sym)- eps * Sp(k, rho_sym))
 
+    operator = new_1d([A11 + A12 + A13 + A14,
+                       A21 + A22 + A23 + A24,
+                       A31 + A32 + A33 + A34,
+                       A41 + A42 + A43 + A44])
+
+
     1/0
-    # -1 for interior Dirichlet
-    # +1 for exterior Dirichlet
-    #loc_sign = +1
 
-    '''
-    bdry_op_sym = (loc_sign*0.5*sigma_sym
-            + sqrt_w*(
-                sym.S(kernel, inv_sqrt_w_sigma, qbx_forced_limit=+1)
-                + sym.D(kernel, inv_sqrt_w_sigma, qbx_forced_limit="avg")
-                ))
-    '''
-    # }}}
-
-    lhs = sym.bmat([[A11, A12, A13, A14],
-                    [A21, A22, A23, A24],
-                    [A31, A32, A33, A34],
-                    [A41, A42, A43, A44]])
-
-
-    bound_op = bind(places, bdry_op_sym)
+    bound_op = bind(places, operator)
 
     # {{{ fix rhs and solve
 
