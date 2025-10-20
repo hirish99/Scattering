@@ -94,10 +94,22 @@ def main(visualize=False):
 
     #Define all boundary operators for ease of use later
     def S_vec(k, v):
-        return make_obj_array([sym.S(k, v[i]) for i in range(3)])
+        return make_obj_array([sym.S(k, v[i], qbx_forced_limit=+1) for i in range(3)])
     
-    def 
+    def M_vec(k, v):
+        return make_obj_array([sym.cross(n_hat, sym.curl(sym.S(k, v[i], qbx_forced_limit='avg'))) for i in range(3)])
     
+
+    #Define first row of eq. 37 in DFIE paper
+    A11 = (u_0+u)/2 * a_sym_vec + (u_0 * M_vec(k_0, a_sym_vec)- u * M_vec(k, a_sym_vec))
+    A12 = -sym.curl(n_hat, u_0*S_vec(k_0, n_hat * sigma_sym)-u*S_vec(k, n_hat * sigma_sym))
+    A13 = sym.curl(n_hat, u_0*eps_0*S_vec(k_0, b_sym_vec)- u*eps*S_vec(k, b_sym_vec))
+    A14 = sym.grad(S_vec(k_0, rho_sym)-S_vec(k, rho_sym))
+
+    #Define second row of eq. 37 in DFIE paper
+
+
+
 
     # -1 for interior Dirichlet
     # +1 for exterior Dirichlet
