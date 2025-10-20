@@ -78,8 +78,8 @@ def main(visualize=False):
     sigma_sym = sym.cse(sym.var("sigma"))
     rho_sym = sym.cse(sym.var("rho"))
 
-    a_sym_vec = sym.cse(sym.make_sym_vector("a", 3))
-    b_sym_vec = sym.cse(sym.make_sym_vector("b", 3))
+    a_sym_vec = sym.cse(sym.make_sym_vector("a", 2))
+    b_sym_vec = sym.cse(sym.make_sym_vector("b", 2))
 
     from pytools.obj_array import make_obj_array
     k = sym.var("k")
@@ -88,18 +88,29 @@ def main(visualize=False):
     u_0 = sym.var("u_0")
     eps = sym.var("eps")
     eps_0 = sym.var("eps_0")
+    omega_0_sq = k_0**2/(eps_0*u_0)
+    omega_sq = k**2/(eps*u)
 
     #Define normal vector, https://documen.tician.de/pytential/symbolic.html
     n_hat = sym.normal(qbx.ambient_dim)
 
-    #Define all boundary operators for ease of use later
+    #Define all boundary operators for ease of use later. k is the Helmholtz constant, not kernel.
     def S_vec(k, v):
-        return make_obj_array([sym.S(k, v[i], qbx_forced_limit=+1) for i in range(3)])
+        return make_obj_array([sym.S(kernel, v[i], k=k, qbx_forced_limit=+1) for i in range(2)])
     
     def M_vec(k, v):
-        return make_obj_array([sym.cross(n_hat, sym.curl(sym.S(k, v[i], qbx_forced_limit='avg'))) for i in range(3)])
+        return make_obj_array([sym.cross(n_hat, sym.curl(sym.S(kernel, v[i], k=k, qbx_forced_limit='avg'))) for i in range(2)])
     
-
+    def D(k, sigma):
+        return sym.D(kernel, sigma, k=k, qbx_forced_limit='avg')
+    
+    def S(k, sigma):
+        return sym.S(kernel, sigma, k=k, qbx_forced_limit=+1)
+    
+    def Sp(k, sigma):
+        return sym.Sp(kernel, sigma, k=k, qbx_forced_limit='avg')
+    
+    #Unknown vector: a_sym_vec, sigma, b_sym_vec, rho
     #Define first row of eq. 37 in DFIE paper
     A11 = (u_0+u)/2 * a_sym_vec + (u_0 * M_vec(k_0, a_sym_vec)- u * M_vec(k, a_sym_vec))
     A12 = -sym.curl(n_hat, u_0*S_vec(k_0, n_hat * sigma_sym)-u*S_vec(k, n_hat * sigma_sym))
@@ -107,6 +118,22 @@ def main(visualize=False):
     A14 = sym.grad(S_vec(k_0, rho_sym)-S_vec(k, rho_sym))
 
     #Define second row of eq. 37 in DFIE paper
+    A21 = 0
+    A22 = (u_0+u)/2 * sigma_sym + (u_0 * D(k_0, sigma_sym) - u * D(k, sigma_sym))
+    A23 = sym.div(u_0*eps_0 * S_vec(k_0, b_sym_vec) - u * eps * S_vec(k, b_sym_vec))
+    A24 = -omega_sq * (u_0 * eps_0 * S(k_0, rho_sym) - u * eps * S(k, rho_sym))
+
+    #Define third row of eq. 37 in DFIE paper
+    A31 = sym.cross(n_hat, sym.curl(sym.curl(S_vec(k_0, a_sym_vec)-S_vec(k, a_sym_vec)))) 
+    A32 = sym.cross(n_hat, sym.curl(S_vec(k_0, n_hat*sigma_sym)-S_vec(k, n_hat*sigma_sym)))
+    A33 = (eps_0+eps)/2 * b_sym_vec + (eps_0 * M_vec(k_0, b_sym_vec) - eps * M_vec(k, b_sym_vec))
+    A34 = 0
+
+    #Define fourth row of eq. 37 in DFIE paper
+    A41 = sym.dot(n_hat, sym.curl(eps_0 * u_0 * S_vec(k_0, a_sym_vec) - eps * u * S_vec(k, a_sym_vec)))
+    A42 = sym.dot(n_hat, (eps_0 * u_0 * S_vec(k_0, n_hat * sigma) - eps * u * S_vec(k, n_hat * sigma)))
+    A43 = sym.dot(n_hat, (u_0 * eps_0**2 * S_vec(k_0, b_sym_vec) - u * eps**2 * S_vec(k, b_sym_vec)))
+    A44 = -(eps_0 + eps)/2 * rho_sym + (eps_0 * Sp(k_0, rho_sym)- eps * Sp(k, rho_sym))
 
 
 
