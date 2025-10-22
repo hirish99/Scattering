@@ -82,12 +82,12 @@ def main(visualize=False):
     a_sym_vec = sym.cse(sym.make_sym_vector("a", 2))
     b_sym_vec = sym.cse(sym.make_sym_vector("b", 2))
 
-    k = sym.var("k")
-    k_0 = sym.var("k_0")
-    u = sym.var("u")
-    u_0 = sym.var("u_0")
-    eps = sym.var("eps")
-    eps_0 = sym.var("eps_0")
+    k = sym.SpatialConstant("k")
+    k_0 = sym.SpatialConstant("k_0")
+    u = sym.SpatialConstant("u")
+    u_0 = sym.SpatialConstant("u_0")
+    eps = sym.SpatialConstant("eps")
+    eps_0 = sym.SpatialConstant("eps_0")
     omega_sq = k**2/(eps*u)
     omega = k/sym.sqrt(eps*u)
 
@@ -134,9 +134,9 @@ def main(visualize=False):
     A34 = 0
 
     #Define fourth row of eq. 37 in DFIE paper
-    A41 = sym.dot(n_hat, sym.curl(eps_0 * u_0 * S_vec(k_0, a_sym_vec_amb) - eps * u * S_vec(k, a_sym_vec_amb)))
-    A42 = sym.dot(n_hat, (eps_0 * u_0 * S_vec(k_0, n_hat * sigma) - eps * u * S_vec(k, n_hat * sigma)))
-    A43 = sym.dot(n_hat, (u_0 * eps_0**2 * S_vec(k_0, b_sym_vec_amb) - u * eps**2 * S_vec(k, b_sym_vec_amb)))
+    A41 = sym.n_dot(sym.curl(eps_0 * u_0 * S_vec(k_0, a_sym_vec_amb) - eps * u * S_vec(k, a_sym_vec_amb)))
+    A42 = sym.n_dot((eps_0 * u_0 * S_vec(k_0, n_hat * sigma_sym) - eps * u * S_vec(k, n_hat * sigma_sym)))
+    A43 = sym.n_dot((u_0 * eps_0**2 * S_vec(k_0, b_sym_vec_amb) - u * eps**2 * S_vec(k, b_sym_vec_amb)))
     A44 = -(eps_0 + eps)/2 * rho_sym + (eps_0 * Sp(k_0, rho_sym)- eps * Sp(k, rho_sym))
 
     operator = new_1d([A11 + A12 + A13 + A14,
@@ -184,7 +184,7 @@ def main(visualize=False):
             stall_iterations=0,
             hard_failure=True)
 
-    sigma = bind(places, sym.var("sigma")/sqrt_w)(
+    sigma = bind(places, sym.var("sigma"))(
             actx, sigma=gmres_result.solution)
 
     # }}}
