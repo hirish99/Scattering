@@ -148,16 +148,24 @@ def main(visualize=False):
 
     # {{{ fix rhs and solve
 
-    r_out = 10 #what does this do? where the incoming wave originates from?
+    r_out = -10 #what does this do? where the incoming wave originates from?
     nodes = actx.thaw(density_discr.nodes())
     source = np.array([r_out, 0, 0], dtype=object)
 
-    def u_incoming_func(x):
+    k_vec = actx.np.array([1, 0, 0])
+
+    def u_incoming_func_E(x): #defines the incoming wave as a function of source, needs to be a vector.
+        E_0 = actx.np.array([1, 0, 0])
         dists = x - source
-        return 1.0 / actx.np.sqrt(sum(dists**2))
+        return E_0 * actx.np.exp(1j * actx.np.dot(k_vec, dists))
+    
+    def u_incoming_func_H(x):
+
+    
+
 
     bc = u_incoming_func(nodes)
-    bvp_rhs = bind(places, sqrt_w*sym.var("bc"))(actx, bc=bc)
+    bvp_rhs = bind(places, sym.var("bc"))(actx, bc=bc)
 
     from pytential.linalg.gmres import gmres
     gmres_result = gmres(
