@@ -144,9 +144,6 @@ def main(visualize=False):
                        A31 + A32 + A33 + A34,
                        A41 + A42 + A43 + A44])
 
-
-    1/0
-
     bound_op = bind(places, operator)
 
     # {{{ fix rhs and solve
@@ -155,17 +152,17 @@ def main(visualize=False):
     nodes = actx.thaw(density_discr.nodes())
     source = np.array([r_out, 0, 0], dtype=object)
 
-    k_vec = actx.np.array([1, 0, 0]) #must be normalized, EM wave moves from left to right along x-axis
+    k_vec = np.array([1, 0, 0]) #must be normalized, EM wave moves from left to right along x-axis
 
     def u_incoming_func_E(x): #defines the incoming wave as a function of source, needs to be a vector.
-        E_0 = actx.np.array([0, 1, 0])
+        E_0 = np.array([0, 1, 0])
         dists = x - source
-        return E_0 * actx.np.exp(1j * actx.np.dot(k_vec, dists))
+        return E_0 * actx.np.exp(1j * np.dot(k_vec, dists))
     
     def u_incoming_func_H(x):
-        H_0 = actx.np.array([0, 0, 1])/sym.sqrt(u_0/eps_0)
+        H_0 = np.array([0, 0, 1])/sym.sqrt(u_0/eps_0)
         dists = x - source
-        return H_0 * actx.np.exp(1j * actx.np.dot(k_vec, dists))
+        return H_0 * actx.np.exp(1j * np.dot(k_vec, dists))
     
     #Creating rhs from Eq. 39
     bcf = sym.cross(n_hat, u_incoming_func_E(nodes))
@@ -176,6 +173,8 @@ def main(visualize=False):
     
     #bc = u_incoming_func(nodes)
     bvp_rhs = bind(places, sym.var("bc"))(actx, bc=bc)
+
+    1/0
 
     from pytential.linalg.gmres import gmres
     gmres_result = gmres(
