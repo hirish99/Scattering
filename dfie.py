@@ -89,17 +89,16 @@ def main(visualize=False):
     eps = sym.var("eps")
     eps_0 = sym.var("eps_0")
     omega_sq = k**2/(eps*u)
+    omega = k/sym.sqrt(eps*u)
 
     #Define normal vector, https://documen.tician.de/pytential/symbolic.html
     n_hat = sym.normal(qbx.ambient_dim).as_vector()
 
     #Define all boundary operators for ease of use later. k is the Helmholtz constant, not kernel.
-    def S_vec(k, v):
-        v_ambient = sym.parametrization_derivative_matrix(3, 2) @ v
+    def S_vec(k, v_ambient):
         return new_1d(sym.S(kernel, v_ambient, k=k, qbx_forced_limit=+1))
     
-    def M_vec(k, v):
-        v_ambient = sym.parametrization_derivative_matrix(3, 2) @ v
+    def M_vec(k, v_ambient):
         return new_1d(sym.cross(n_hat, sym.curl(sym.S(kernel, v_ambient, k=k, qbx_forced_limit='avg'))))
     
     def D(k, sigma):
@@ -113,27 +112,31 @@ def main(visualize=False):
     
     #Unknown vector: a_sym_vec, sigma, b_sym_vec, rho
     #Define first row of eq. 37 in DFIE paper
-    A11 = (u_0+u)/2 * a_sym_vec + (u_0 * M_vec(k_0, a_sym_vec)- u * M_vec(k, a_sym_vec))
-    A12 = -sym.curl(n_hat, u_0*S_vec(k_0, n_hat * sigma_sym)-u*S_vec(k, n_hat * sigma_sym))
-    A13 = sym.curl(n_hat, u_0*eps_0*S_vec(k_0, b_sym_vec)- u*eps*S_vec(k, b_sym_vec))
-    A14 = sym.grad(S_vec(k_0, rho_sym)-S_vec(k, rho_sym))
+
+    a_sym_vec_amb = sym.parametrization_derivative_matrix(3, 2) @ a_sym_vec
+    b_sym_vec_amb = sym.parametrization_derivative_matrix(3, 2) @ b_sym_vec
+
+    A11 = (u_0+u)/2 * a_sym_vec_amb + (u_0 * M_vec(k_0, a_sym_vec_amb)- u * M_vec(k, a_sym_vec_amb))
+    A12 = -sym.cross(n_hat, u_0*S_vec(k_0, n_hat * sigma_sym)-u*S_vec(k, n_hat * sigma_sym))
+    A13 = sym.cross(n_hat, u_0*eps_0*S_vec(k_0, b_sym_vec_amb)- u*eps*S_vec(k, b_sym_vec_amb))
+    A14 = sym.grad(3, S(k_0, rho_sym)-S(k, rho_sym))
 
     #Define second row of eq. 37 in DFIE paper
     A21 = 0
     A22 = (u_0+u)/2 * sigma_sym + (u_0 * D(k_0, sigma_sym) - u * D(k, sigma_sym))
-    A23 = sym.div(u_0*eps_0 * S_vec(k_0, b_sym_vec) - u * eps * S_vec(k, b_sym_vec))
+    A23 = sym.div(u_0*eps_0 * S_vec(k_0, b_sym_vec_amb) - u * eps * S_vec(k, b_sym_vec_amb))
     A24 = -omega_sq * (u_0 * eps_0 * S(k_0, rho_sym) - u * eps * S(k, rho_sym))
 
     #Define third row of eq. 37 in DFIE paper
-    A31 = sym.cross(n_hat, sym.curl(sym.curl(S_vec(k_0, a_sym_vec)-S_vec(k, a_sym_vec)))) 
+    A31 = sym.cross(n_hat, sym.curl(sym.curl(S_vec(k_0, a_sym_vec_amb)-S_vec(k, a_sym_vec_amb)))) 
     A32 = sym.cross(n_hat, sym.curl(S_vec(k_0, n_hat*sigma_sym)-S_vec(k, n_hat*sigma_sym)))
-    A33 = (eps_0+eps)/2 * b_sym_vec + (eps_0 * M_vec(k_0, b_sym_vec) - eps * M_vec(k, b_sym_vec))
+    A33 = (eps_0+eps)/2 * b_sym_vec_amb + (eps_0 * M_vec(k_0, b_sym_vec_amb) - eps * M_vec(k, b_sym_vec_amb))
     A34 = 0
 
     #Define fourth row of eq. 37 in DFIE paper
-    A41 = sym.dot(n_hat, sym.curl(eps_0 * u_0 * S_vec(k_0, a_sym_vec) - eps * u * S_vec(k, a_sym_vec)))
+    A41 = sym.dot(n_hat, sym.curl(eps_0 * u_0 * S_vec(k_0, a_sym_vec_amb) - eps * u * S_vec(k, a_sym_vec_amb)))
     A42 = sym.dot(n_hat, (eps_0 * u_0 * S_vec(k_0, n_hat * sigma) - eps * u * S_vec(k, n_hat * sigma)))
-    A43 = sym.dot(n_hat, (u_0 * eps_0**2 * S_vec(k_0, b_sym_vec) - u * eps**2 * S_vec(k, b_sym_vec)))
+    A43 = sym.dot(n_hat, (u_0 * eps_0**2 * S_vec(k_0, b_sym_vec_amb) - u * eps**2 * S_vec(k, b_sym_vec_amb)))
     A44 = -(eps_0 + eps)/2 * rho_sym + (eps_0 * Sp(k_0, rho_sym)- eps * Sp(k, rho_sym))
 
     operator = new_1d([A11 + A12 + A13 + A14,
@@ -152,19 +155,26 @@ def main(visualize=False):
     nodes = actx.thaw(density_discr.nodes())
     source = np.array([r_out, 0, 0], dtype=object)
 
-    k_vec = actx.np.array([1, 0, 0])
+    k_vec = actx.np.array([1, 0, 0]) #must be normalized, EM wave moves from left to right along x-axis
 
     def u_incoming_func_E(x): #defines the incoming wave as a function of source, needs to be a vector.
-        E_0 = actx.np.array([1, 0, 0])
+        E_0 = actx.np.array([0, 1, 0])
         dists = x - source
         return E_0 * actx.np.exp(1j * actx.np.dot(k_vec, dists))
     
     def u_incoming_func_H(x):
-
+        H_0 = actx.np.array([0, 0, 1])/sym.sqrt(u_0/eps_0)
+        dists = x - source
+        return H_0 * actx.np.exp(1j * actx.np.dot(k_vec, dists))
     
-
-
-    bc = u_incoming_func(nodes)
+    #Creating rhs from Eq. 39
+    bcf = sym.cross(n_hat, u_incoming_func_E(nodes))
+    bcg = sym.cross(-1j * omega * n_hat, u_incoming_func_H(nodes))
+    bfq = 0 * nodes
+    bcp = sym.cross(-n_hat, eps_0 * u_incoming_func_E(nodes))
+    bc = new_1d([bcf, bcg, bfq, bcp])
+    
+    #bc = u_incoming_func(nodes)
     bvp_rhs = bind(places, sym.var("bc"))(actx, bc=bc)
 
     from pytential.linalg.gmres import gmres
