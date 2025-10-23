@@ -157,15 +157,16 @@ def main(visualize=False):
     def u_incoming_func_E(x): #defines the incoming wave as a function of source, needs to be a vector.
         E_0 = np.array([0, 1, 0])
         dists = x - source
-        return E_0 * actx.np.exp(1j * np.dot(k_vec, dists))
+        return E_0 * sym.exp(1j * np.dot(k_vec, dists.as_vector()))
     
     def u_incoming_func_H(x):
         H_0 = np.array([0, 0, 1])/sym.sqrt(u_0/eps_0)
         dists = x - source
-        return H_0 * actx.np.exp(1j * np.dot(k_vec, dists))
+        return H_0 * actx.np.exp(1j * np.dot(k_vec, dists.as_vector()))
     
     #Creating rhs from Eq. 39
-    bcf = sym.cross(n_hat, u_incoming_func_E(nodes))
+    x = sym.nodes(3)
+    bcf = sym.cross(n_hat, u_incoming_func_E(x)) #how to stick in nodes?
     bcg = sym.cross(-1j * omega * n_hat, u_incoming_func_H(nodes))
     bfq = 0 * nodes
     bcp = sym.cross(-n_hat, eps_0 * u_incoming_func_E(nodes))
