@@ -162,14 +162,14 @@ def main(visualize=False):
     def u_incoming_func_H(x):
         H_0 = np.array([0, 0, 1])/sym.sqrt(u_0/eps_0)
         dists = x - source
-        return H_0 * actx.np.exp(1j * np.dot(k_vec, dists.as_vector()))
+        return H_0 * sym.exp(1j * np.dot(k_vec, dists.as_vector()))
     
     #Creating rhs from Eq. 39
     x = sym.nodes(3)
-    bcf = sym.cross(n_hat, u_incoming_func_E(x)) #how to stick in nodes?
-    bcg = sym.cross(-1j * omega * n_hat, u_incoming_func_H(nodes))
+    bcf = sym.cross(n_hat, u_incoming_func_E(x)) #nodes are stuck in from places
+    bcg = sym.cross(-1j * omega * n_hat, u_incoming_func_H(x))
     bfq = 0 * nodes
-    bcp = sym.cross(-n_hat, eps_0 * u_incoming_func_E(nodes))
+    bcp = sym.cross(-n_hat, eps_0 * u_incoming_func_E(x))
     bc = new_1d([bcf, bcg, bfq, bcp])
     
     #bc = u_incoming_func(nodes)
