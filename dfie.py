@@ -175,14 +175,14 @@ def main(visualize=False):
     #bc = u_incoming_func(nodes)
     bvp_rhs = bind(places, sym.var("bc"))(actx, bc=bc)
 
-    1/0
-
     from pytential.linalg.gmres import gmres
     gmres_result = gmres(
-            bound_op.scipy_op(actx, "sigma", dtype=np.float64),
+            bound_op.scipy_op(actx, "?????", dtype=np.float64),
             bvp_rhs, tol=1e-14, progress=True,
             stall_iterations=0,
             hard_failure=True)
+
+    1/0
 
     sigma = bind(places, sym.var("sigma"))(
             actx, sigma=gmres_result.solution)
