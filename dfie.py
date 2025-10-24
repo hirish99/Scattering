@@ -169,21 +169,24 @@ def main(visualize=False):
     
     #Creating rhs from Eq. 39
     x = sym.nodes(3)
-    bcf = sym.cross(n_hat, u_incoming_func_E(x)) #nodes are stuck in from places
-    bcg = sym.cross(-1j * omega * n_hat, u_incoming_func_H(x))
-    bfq = 0 * x
-    bcp = sym.cross(-n_hat, eps_0 * u_incoming_func_E(x))
+    indestructible_zero_vec = x.as_vector() - x.as_vector()
+    bcf = indestructible_zero_vec + sym.cross(n_hat, u_incoming_func_E(x)) #nodes are stuck in from places
+    bcg = indestructible_zero_vec + sym.cross(-1j * omega * n_hat, u_incoming_func_H(x))
+    bfq = indestructible_zero_vec
+    bcp = indestructible_zero_vec + sym.cross(-n_hat, eps_0 * u_incoming_func_E(x))
     bc = new_1d([bcf, bcg, bfq, bcp])
     
     print(sym.pretty(bc))
     #bc = u_incoming_func(nodes)
-    bvp_rhs = bind(places, bc)(actx, eps=1, u=1, eps_0=1, k=1, k_0=1, u_0=1, omega=1, omega_sq=1)
+    parameters = dict(eps=1, u=1, eps_0=1, k=1, k_0=1, u_0=1, omega=1, omega_sq=1)
+    bvp_rhs = bind(places, bc)(actx, **parameters)
 
 
     
     from pytential.linalg.gmres import gmres
+    print(bound_op.code)
     gmres_result = gmres(
-            bound_op.scipy_op(actx, "sigma", dtype=np.float64),
+            bound_op.scipy_op(actx, "sigma", dtype=np.float64, **parameters),
             bvp_rhs, tol=1e-14, progress=True,
             stall_iterations=0,
             hard_failure=True)
