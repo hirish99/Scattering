@@ -75,12 +75,15 @@ def main(visualize=False):
     kernel = HelmholtzKernel(3)
 
 
-    #Define DFIE surface densities
-    sigma_sym = sym.cse(sym.var("sigma"))
-    rho_sym = sym.cse(sym.var("rho"))
+    sigma = sym.make_sym_vector("sigma", 6)
 
-    a_sym_vec = sym.cse(sym.make_sym_vector("a", 2))
-    b_sym_vec = sym.cse(sym.make_sym_vector("b", 2))
+    #Define DFIE surface densities
+    
+    
+    a_sym_vec = sym.cse(sigma[0:2])#sym.cse(sym.make_sym_vector("a", 2))
+    sigma_sym = sym.cse(sigma[2])#sym.cse(sym.var("sigma"))
+    b_sym_vec = sym.cse(sigma[3:5])#sym.cse(sym.make_sym_vector("b", 2))
+    rho_sym = sym.cse(sigma[5])#sym.cse(sym.var("rho"))
 
     k = sym.SpatialConstant("k")
     k_0 = sym.SpatialConstant("k_0")
@@ -175,9 +178,11 @@ def main(visualize=False):
     #bc = u_incoming_func(nodes)
     bvp_rhs = bind(places, sym.var("bc"))(actx, bc=bc)
 
+
+    
     from pytential.linalg.gmres import gmres
     gmres_result = gmres(
-            bound_op.scipy_op(actx, "?????", dtype=np.float64),
+            bound_op.scipy_op(actx, "sigma", dtype=np.float64),
             bvp_rhs, tol=1e-14, progress=True,
             stall_iterations=0,
             hard_failure=True)
