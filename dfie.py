@@ -152,7 +152,7 @@ def main(visualize=False):
     # {{{ fix rhs and solve
 
     r_out = -10 #what does this do? where the incoming wave originates from?
-    nodes = actx.thaw(density_discr.nodes())
+    #nodes = actx.thaw(density_discr.nodes())
     source = np.array([r_out, 0, 0], dtype=object)
 
     k_vec = np.array([1, 0, 0]) #must be normalized, EM wave moves from left to right along x-axis
@@ -171,12 +171,13 @@ def main(visualize=False):
     x = sym.nodes(3)
     bcf = sym.cross(n_hat, u_incoming_func_E(x)) #nodes are stuck in from places
     bcg = sym.cross(-1j * omega * n_hat, u_incoming_func_H(x))
-    bfq = 0 * nodes
+    bfq = 0 * x
     bcp = sym.cross(-n_hat, eps_0 * u_incoming_func_E(x))
     bc = new_1d([bcf, bcg, bfq, bcp])
     
+    print(sym.pretty(bc))
     #bc = u_incoming_func(nodes)
-    bvp_rhs = bind(places, sym.var("bc"))(actx, bc=bc)
+    bvp_rhs = bind(places, bc)(actx, eps=1, u=1, eps_0=1, k=1, k_0=1, u_0=1, omega=1, omega_sq=1)
 
 
     
