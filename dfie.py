@@ -116,8 +116,13 @@ def main(visualize=False):
     #Unknown vector: a_sym_vec, sigma, b_sym_vec, rho
     #Define first row of eq. 37 in DFIE paper
 
-    a_sym_vec_amb = sym.parametrization_derivative_matrix(3, 2) @ a_sym_vec
-    b_sym_vec_amb = sym.parametrization_derivative_matrix(3, 2) @ b_sym_vec
+    J = sym.parametrization_derivative_matrix(ambient_dim=3, dim=2)   # shape: (3,2)
+    JT = J.T  
+
+    a_sym_vec_amb = J @ a_sym_vec
+    b_sym_vec_amb = J @ b_sym_vec
+
+                                           # shape: (2,3)
 
     A11 = (u_0+u)/2 * a_sym_vec_amb + (u_0 * M_vec(k_0, a_sym_vec_amb)- u * M_vec(k, a_sym_vec_amb))
     A12 = -sym.cross(n_hat, u_0*S_vec(k_0, n_hat * sigma_sym)-u*S_vec(k, n_hat * sigma_sym))
@@ -168,13 +173,20 @@ def main(visualize=False):
         return H_0 * sym.exp(1j * np.dot(k_vec, dists.as_vector()))
     
     #Creating rhs from Eq. 39
-    x = sym.nodes(3)
-    indestructible_zero_vec = x.as_vector() - x.as_vector()
-    bcf = indestructible_zero_vec + sym.cross(n_hat, u_incoming_func_E(x)) #nodes are stuck in from places
-    bcg = indestructible_zero_vec + sym.cross(-1j * omega * n_hat, u_incoming_func_H(x))
-    bfq = indestructible_zero_vec
-    bcp = indestructible_zero_vec + sym.cross(-n_hat, eps_0 * u_incoming_func_E(x))
-    bc = new_1d([bcf, bcg, bfq, bcp])
+    x3 = sym.nodes(3)
+    indestructible_zero_vec_3 = x3.as_vector() - x3.as_vector()
+    x1 = sym.nodes(1)
+    indestructible_zero_vec_1 = x1.as_vector() - x1.as_vector()
+
+    bcf = JT @ (indestructible_zero_vec_3 + sym.cross(n_hat, u_incoming_func_E(x3))) #nodes are stuck in from places
+    bcq = indestructible_zero_vec_1
+    bcg = JT @ (indestructible_zero_vec_3 + sym.cross(-1j * omega * n_hat, u_incoming_func_H(x3)))
+    bcp =  -sym.n_dot(eps_0 * u_incoming_func_E(x3)) +indestructible_zero_vec_1 
+
+    #We must convert bcf, bcg, bfq, bcp into 2-dim vectors
+
+
+    bc = new_1d([bcf[0], bcf[1], bcq[0], bcg[0], bcg[1], bcp[0]])
     
     print(sym.pretty(bc))
     #bc = u_incoming_func(nodes)
@@ -191,8 +203,6 @@ def main(visualize=False):
             stall_iterations=0,
             hard_failure=True)
 
-    1/0
-
     sigma = bind(places, sym.var("sigma"))(
             actx, sigma=gmres_result.solution)
 
@@ -206,6 +216,7 @@ def main(visualize=False):
 
     # {{{ postprocess/visualize
 
+    '''
     repr_kwargs = {
             "source": "qbx_target_assoc",
             "target": "targets",
@@ -213,6 +224,7 @@ def main(visualize=False):
     representation_sym = (
             sym.S(kernel, inv_sqrt_w_sigma, **repr_kwargs)
             + sym.D(kernel, inv_sqrt_w_sigma, **repr_kwargs))
+    
 
     try:
         fld_in_vol = actx.to_numpy(
@@ -222,11 +234,12 @@ def main(visualize=False):
             ("failed", actx.to_numpy(e.failed_target_flags)),
             ])
         raise
-
+    
     # fplot.show_scalar_in_mayavi(fld_in_vol.real, max_val=5)
     fplot.write_vtk_file("laplace-dirichlet-3d-potential.vts", [
         ("potential", fld_in_vol),
         ])
+    '''
 
     # }}}
 
