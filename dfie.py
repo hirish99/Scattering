@@ -6,10 +6,11 @@ from meshmode.discretization import Discretization
 from meshmode.discretization.poly_element import (
     InterpolatoryQuadratureGroupFactory,
 )
+import pytools.obj_array as obj_array
 
 from pytential import bind, sym
 from pytential.target import PointsTarget
-from pytools.obj_array import ObjectArray1D, new_1d
+from pytools.obj_array import ObjectArray1D, flat_obj_array, new_1d
 
 
 # {{{ set some constants for use below
@@ -26,7 +27,7 @@ fmm_order = 3
 
 def main(visualize=False):
     import logging
-    logging.basicConfig(level=logging.WARNING)  # INFO for more progress info
+    logging.basicConfig(level=logging.INFO)  # INFO for more progress info
 
     import pyopencl as cl
     cl_ctx = cl.create_some_context()
@@ -147,10 +148,10 @@ def main(visualize=False):
     A43 = sym.n_dot((u_0 * eps_0**2 * S_vec(k_0, b_sym_vec_amb) - u * eps**2 * S_vec(k, b_sym_vec_amb)))
     A44 = -(eps_0 + eps)/2 * rho_sym + (eps_0 * Sp(k_0, rho_sym)- eps * Sp(k, rho_sym))
 
-    operator = new_1d([A11 + A12 + A13 + A14,
+    operator = obj_array.flat(JT @ (A11 + A12 + A13 + A14),
                        A21 + A22 + A23 + A24,
-                       A31 + A32 + A33 + A34,
-                       A41 + A42 + A43 + A44])
+                       JT @ (A31 + A32 + A33 + A34),
+                       A41 + A42 + A43 + A44)
 
     bound_op = bind(places, operator)
 
@@ -210,7 +211,7 @@ def main(visualize=False):
 
     from meshmode.discretization.visualization import make_visualizer
     bdry_vis = make_visualizer(actx, density_discr, 20)
-    bdry_vis.write_vtk_file("laplace.vtu", [
+    bdry_vis.write_vtk_file("dfie.vtu", [
         ("sigma", sigma),
         ])
 
@@ -225,7 +226,6 @@ def main(visualize=False):
             sym.S(kernel, inv_sqrt_w_sigma, **repr_kwargs)
             + sym.D(kernel, inv_sqrt_w_sigma, **repr_kwargs))
     
-
     try:
         fld_in_vol = actx.to_numpy(
                 bind(places, representation_sym)(actx, sigma=sigma))
