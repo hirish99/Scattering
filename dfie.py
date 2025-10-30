@@ -216,33 +216,38 @@ def main(visualize=False):
         ])
 
     # {{{ postprocess/visualize
-
-    E_0 = u_0 * sym.curl(S_vec(k_0, J @ a_sym_vec)) - u_0 * S_vec(k_0, sym.n_dot(sigma_sym)) + u_0 * eps_0 * S_vec(k_0, b_sym_vec) + sym.grad(S_vec(k_0, rho_sym))
-    E = u * sym.curl(S_vec(k, J @ a_sym_vec)) - u * S_vec(k, sym.n_dot(sigma_sym)) + u * eps * S_vec(k, b_sym_vec) + sym.grad(S_vec(k, rho_sym))
-
-    '''
+    
     repr_kwargs = {
             "source": "qbx_target_assoc",
             "target": "targets",
             "qbx_forced_limit": None}
-    representation_sym = (
-            sym.S(kernel, inv_sqrt_w_sigma, **repr_kwargs)
-            + sym.D(kernel, inv_sqrt_w_sigma, **repr_kwargs))
+    
+    def S_vec_modified(k, v_ambient):
+        return new_1d(sym.S(kernel, v_ambient, k=k, **repr_kwargs))
+    
+    def S_modified(k, sigma):
+        return sym.S(kernel, sigma, k=k, **repr_kwargs)
+
+
+    E_0 = u_0 * sym.curl(S_vec_modified(k_0, J @ a_sym_vec)) - u_0 * S_vec_modified(k_0, n_hat * sigma_sym) + u_0 * eps_0 * S_vec_modified(k_0, J @ b_sym_vec) + sym.grad(3, S_modified(k_0, rho_sym))
+    E = u * sym.curl(S_vec_modified(k, J @ a_sym_vec)) - u * S_vec_modified(k, n_hat * sigma_sym) + u * eps * S_vec_modified(k, J @ b_sym_vec) + sym.grad(3, S_modified(k, rho_sym))
+
+    representation_sym = (E_0)
     
     try:
         fld_in_vol = actx.to_numpy(
-                bind(places, representation_sym)(actx, sigma=sigma))
+                bind(places, representation_sym)(actx, sigma=sigma, **parameters))
     except QBXTargetAssociationFailedError as e:
-        fplot.write_vtk_file("laplace-dirichlet-3d-failed-targets.vts", [
+        fplot.write_vtk_file("dfie_E_0-failed-targets.vts", [
             ("failed", actx.to_numpy(e.failed_target_flags)),
             ])
         raise
     
     # fplot.show_scalar_in_mayavi(fld_in_vol.real, max_val=5)
-    fplot.write_vtk_file("laplace-dirichlet-3d-potential.vts", [
-        ("potential", fld_in_vol),
+    fplot.write_vtk_file("dfie_E_0.vts", [
+        ("field", fld_in_vol),
         ])
-    '''
+    
 
     # }}}
 
