@@ -155,7 +155,7 @@ def main(visualize=False):
 
     bound_op = bind(places, operator)
 
-    # {{{ fix rhs and solve
+    # {{{ fix rhs and solve 
 
     r_out = -10 #what does this do? where the incoming wave originates from?
     #nodes = actx.thaw(density_discr.nodes())
@@ -216,6 +216,9 @@ def main(visualize=False):
         ])
 
     # {{{ postprocess/visualize
+
+    E_0 = u_0 * sym.curl(S_vec(k_0, J @ a_sym_vec)) - u_0 * S_vec(k_0, sym.n_dot(sigma_sym)) + u_0 * eps_0 * S_vec(k_0, b_sym_vec) + sym.grad(S_vec(k_0, rho_sym))
+    E = u * sym.curl(S_vec(k, J @ a_sym_vec)) - u * S_vec(k, sym.n_dot(sigma_sym)) + u * eps * S_vec(k, b_sym_vec) + sym.grad(S_vec(k, rho_sym))
 
     '''
     repr_kwargs = {
